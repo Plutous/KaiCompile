@@ -68,13 +68,10 @@ public class Operation {
         Element.menuBar.add(Element.fileMenu);
         //添加文件菜单子项
         Element.fileMenu.add(Element.openJMI);
-//        Element.jMenu.add(Element.openTabJMI);
         Element.fileMenu.add(Element.newJML);
         Element.newJML.add(Element.txtJMI);
-//        Element.newJML.add(Element.markDownJMI);
         Element.fileMenu.add(Element.saveJMI);
         Element.fileMenu.add(Element.saveOtherJMI);
-//        Element.fileMenu.add(Element.printList);
 
         //添加编辑菜单
         Element.menuBar.add(Element.editMenu);
@@ -86,7 +83,6 @@ public class Operation {
         Element.editMenu.add(Element.cutJML);
         Element.editMenu.add(Element.pasteJML);
         Element.editMenu.add(new JSeparator());
-//        Element.editMenu.add(Element.undoJML);
         Element.editMenu.add(Element.redoJML);
         Element.editMenu.add(Element.searchJMI);
 
@@ -94,7 +90,6 @@ public class Operation {
         Element.menuBar.add(Element.setMenu);
         //添加设置菜单子项
         Element.setMenu.add(Element.styleJML);
-//        Element.setMenu.add(Element.fontJML);
 
         //添加关于菜单
         Element.menuBar.add(Element.aboutMenu);
@@ -103,7 +98,6 @@ public class Operation {
 
         //菜单添加快捷键
         Element.saveJMI.setAccelerator(KeyStroke.getKeyStroke('S', InputEvent.CTRL_DOWN_MASK));
-//        Element.newJMI.setAccelerator(KeyStroke.getKeyStroke('N',InputEvent.CTRL_DOWN_MASK));
         Element.openJMI.setAccelerator(KeyStroke.getKeyStroke('O', InputEvent.CTRL_DOWN_MASK));
         Element.saveOtherJMI.setAccelerator(KeyStroke.getKeyStroke('S', InputEvent.CTRL_DOWN_MASK + InputEvent.SHIFT_DOWN_MASK));
         Element.selectAllJML.setAccelerator(KeyStroke.getKeyStroke('A', InputEvent.CTRL_DOWN_MASK));
@@ -112,7 +106,6 @@ public class Operation {
         Element.copyJML.setAccelerator(KeyStroke.getKeyStroke('C', InputEvent.CTRL_DOWN_MASK));
         Element.deleteJML.setAccelerator(KeyStroke.getKeyStroke('D', InputEvent.CTRL_DOWN_MASK));
         Element.cutJML.setAccelerator(KeyStroke.getKeyStroke('T', InputEvent.CTRL_DOWN_MASK));
-//        Element.undoJML.setAccelerator(KeyStroke.getKeyStroke('Z', InputEvent.CTRL_DOWN_MASK));
         Element.pasteJML.setAccelerator(KeyStroke.getKeyStroke('V', InputEvent.CTRL_DOWN_MASK));
         Element.redoJML.setAccelerator(KeyStroke.getKeyStroke('Y', InputEvent.CTRL_DOWN_MASK));
         Element.searchJMI.setAccelerator(KeyStroke.getKeyStroke('F', InputEvent.CTRL_DOWN_MASK));
@@ -159,8 +152,6 @@ public class Operation {
      **/
     public static boolean equalsFilter(Filter filter) {
         if (filter.equals(Element.txtFilter)) return true;
-//        if (filter.equals(Element.mdFilter)) return true;
-
         return false;
     }
 
@@ -177,8 +168,6 @@ public class Operation {
             case "ty":
                 Element.jfc.setFileFilter(Element.txtFilter);
                 break;
-//            case "md":
-//                Element.jfc.setFileFilter(Element.mdFilter);
         }
 
         Element.jfc.setSelectedFile(new File(Element.titleList.get(index).getText().replace("*", "")));
@@ -197,8 +186,6 @@ public class Operation {
                     case "ty":
                         Element.jfc.setFileFilter(Element.txtFilter);
                         break;
-//                    case "md":
-//                        Element.jfc.setFileFilter(Element.mdFilter);
                 }
                 filter = (Filter) Element.jfc.getFileFilter();
             }
@@ -228,13 +215,6 @@ public class Operation {
     }
 
     /**
-     * 修改选项卡标题
-     **/
-    public void editTab(JPanel panel, String title) {
-
-    }
-
-    /**
      * 设置文件对话框样式，创建一个对话框
      **/
     public static JFileChooser initJFileChooser(JFileChooser jFileChooser) {
@@ -259,7 +239,6 @@ public class Operation {
 
 
     public static void createConfig() throws IOException {
-//        System.out.println(Element.props.getProperty("user.home") + "\\.EasyPad\\setting.json");
         File f = new File(Element.props.getProperty("user.home") + "\\.EasyPad");// 实例化File类的对象
         f.mkdir();    // 创建文件夹
         FileWriter writer = new FileWriter(Element.props.getProperty("user.home") + "\\.EasyPad\\setting.json");
@@ -566,6 +545,4 @@ public class Operation {
         HTML = HTML.replaceAll("\\[x\\]", "<input type=\"checkbox\">");
         return HTML;
     }
-
-
 }

@@ -153,9 +153,6 @@ public class Frame extends JFrame {
                 Element.tabIndex++;
                 title = title.indexOf(".ty") < 0 ? title += ".ty" : title;
                 Element.pathList = null;
-//                tabItem = new TabItem(title, null, Operation.setIcon("ty"), "ty");
-//                Element.textList.add(tabItem.getTextArea());
-//                Element.titleList.add(tabItem.getLabelText());
 
                 //文本替换
                 tabItem.editText(title);

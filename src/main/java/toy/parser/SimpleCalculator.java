@@ -312,65 +312,6 @@ public class SimpleCalculator {
         return result;
     }
 
-    /**
-     * 语法解析：根节点
-     *
-     * @return
-     * @throws Exception
-     */
-    private SimpleASTNode prog(TokenReader tokens) throws Exception {
-        SimpleASTNode node = new SimpleASTNode(ASTNodeType.Program, "Calculator");
-
-        SimpleASTNode child = additive(tokens);
-
-        if (child != null) {
-            node.addChild(child);
-        }
-        return node;
-    }
-
-    /**
-     * 整型变量声明语句，如：
-     * int a;
-     * int b = 2*3;
-     *
-     * @return
-     * @throws Exception
-     */
-    private SimpleASTNode numDeclare(TokenReader tokens) throws Exception {
-        SimpleASTNode node = null;
-        Token token = tokens.peek();    //预读
-        if (token != null && token.getType() == TokenType.Id_num) {   //匹配Int
-            token = tokens.read();      //消耗掉int
-            if (tokens.peek().getType() == TokenType.Identifier) { //匹配标识符
-                token = tokens.read();  //消耗掉标识符
-                //创建当前节点，并把变量名记到AST节点的文本值中，这里新建一个变量子节点也是可以的
-                node = new SimpleASTNode(ASTNodeType.NumDeclaration, token.getText());
-                token = tokens.peek();  //预读
-                if (token != null && token.getType() == TokenType.Assignment) {
-                    tokens.read();      //消耗掉等号
-                    SimpleASTNode child = additive(tokens);  //匹配一个表达式
-                    if (child == null) {
-                        throw new Exception("invalide variable initialization, expecting an expression");
-                    } else {
-                        node.addChild(child);
-                    }
-                }
-            } else {
-                throw new Exception("variable name expected");
-            }
-
-            if (node != null) {
-                token = tokens.peek();
-                if (token != null && token.getType() == TokenType.SemiColon) {
-                    tokens.read();
-                } else {
-                    throw new Exception("invalid statement, expecting semicolon");
-                }
-            }
-        }
-        return node;
-    }
 
     /**
      * 语法解析：加法表达式
@@ -492,5 +433,4 @@ public class SimpleCalculator {
         return (Double.parseDouble(result) ==
                 (int) Double.parseDouble(result)) ? String.format("%.0f", Double.parseDouble(result)) : String.valueOf(result);
     }
-
 }

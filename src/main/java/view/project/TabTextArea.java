@@ -31,7 +31,6 @@ public class TabTextArea extends JTextArea implements MouseListener {
     }
 
     private static final long serialVersionUID = 1L;
-    //    private JPopupMenu pm=null;
     private JMenuItem copy = null;
     private JMenuItem delete = null;
     private JMenuItem cut = null;

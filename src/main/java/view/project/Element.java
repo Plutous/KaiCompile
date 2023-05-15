@@ -119,6 +119,4 @@ public class Element {
 
     //文件过滤器
     public static Filter txtFilter = new Filter(".ty", "ty 文件 (*.ty)");
-//    public static Filter mdFilter = new Filter(".md", "MarkDown 文件 (*.md)");
-
 }

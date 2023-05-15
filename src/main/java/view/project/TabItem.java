@@ -70,7 +70,6 @@ public class TabItem extends JPanel {
         }
         Element.titleList.remove(index);
         Element.textList.remove(index);
-//        Element.pathList.remove(index);
         Element.mainJTP.remove(index);
     }
 
@@ -160,8 +159,6 @@ public class TabItem extends JPanel {
         //新建一个文本框
         textArea = new TabTextArea();
         textArea.setFont(new Font("楷体", Font.PLAIN, 20)); // 设置字体大小为14
-        //输入框大小写死，防止乱动
-//        textArea.setSize(883, 350);
         //设置默认代码
         textArea.setText(text);
         //将文本框加入JScrollPane控件中，使其滚动条出现
@@ -197,8 +194,6 @@ public class TabItem extends JPanel {
 
         //输入框和行号框
         left.add(apanel, BorderLayout.CENTER);
-        //输出框
-        //  left.add(mainSplitPane, BorderLayout.SOUTH);
 
         body.add(left);
 
@@ -506,9 +501,4 @@ public class TabItem extends JPanel {
         }
         lineNumberArea.setText(numbersText.toString());
     }
-
-    public static void adjustTextFieldSize() {
-
-    }
-
 }
