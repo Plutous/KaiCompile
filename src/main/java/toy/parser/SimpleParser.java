@@ -1,6 +1,5 @@
 package toy.parser;
 
-
 import toy.bean.*;
 import toy.lexer.Lexer;
 
@@ -10,6 +9,28 @@ import java.util.HashMap;
 import java.util.List;
 
 /**
+ * prog -> intDeclare
+ * -> stringDeclare
+ * -> boolDeclare
+ * -> parseSimpleAssign
+ * -> parseIf
+ * -> parseWhile
+ * -> parseFunc
+ * block -> LCB prog LSB
+ * arithExpr -> LPAREN compare RPAREN
+ * If -> IF arithExpr block (Else block)*
+ * While -> WHILE arithExpr block
+ * Func -> KW arithExpr ;
+ * SimpleAssign -> ID Assgin (compare | Func)
+ * And -> compare((and)compare)*  //用And代替老吴的termA termB
+ * compare -> addtive((Comp)addtive)*
+ * addtive -> mul((+ | - )mul)*
+ * mul -> atom((MUL | DIV | MOD | POWER)atom)*
+ *
+ *
+ * 使用递归下降法的时候解析()*，貌似使用if和while都没啥区别
+ * 因为if 或 while都会一直向下递归直到addtive+addtive执行完
+ *
  * @author wwk
  * @since 2023/4/12
  */
@@ -56,6 +77,15 @@ public class SimpleParser {
         tokens.setTokens(Token);
     }
 
+    /**
+     * pwc -> KW SimpleAssign
+     * -> Func LPAREN arithExpr RPAREN
+     * -> If arithExpr {Else block} {1}
+     *
+     * @param tokens
+     * @return
+     * @throws Exception
+     */
     private ASTNode prog(TokenReader tokens) throws Exception {
         //根节点，下面可以有赋值表达式(int a = 100)，运算表达式（2+3+4）,每一个表达式都是这个节点的儿子
         SimpleASTNode root = new SimpleASTNode(ASTNodeType.Program, "pwc", null);
@@ -63,7 +93,7 @@ public class SimpleParser {
         while (tokens.peek() != null) {
             //遇见右大括号直接返回，解析完if() {} 了
             if (tokens.peek().getType() == TokenType.RightBigParen) {
-                tokens.read();// 吃掉右括号并退出
+                //退出Block的解析，
                 break;
             }
             //解析变量声明规则，首先是 num开头 num a = 1; num a; num a = readInt();
@@ -75,29 +105,24 @@ public class SimpleParser {
             if (child == null) {
                 child = boolDeclare(tokens);
             }
-            //说明该token不是赋值语句，则解析表达式expression
-            //可以解析 a; 也可以解析 2+3+4; 2*3+4; a+b+c;
-            if (child == null) {
-                child = expressionStatement(tokens);
-            }
 
             //匹配赋值语句, a = a + 1; 这里应该也要解析{i = i + 1;}
             if (child == null) {
-                child = assignmentStatement(tokens);
+                child = parseSimpleAssign(tokens);
             }
             if (child == null) {
-                child = ifStatement(tokens);
+                child = parseIf(tokens);
             }
             if (child == null) {
-                child = whileStatement(tokens);
+                child = parseWhile(tokens);
             }
             if (child == null) {
-                //解析内置方法
+                //解析关键字
                 child = keyWordStatement(tokens);
             }
             if (child == null) {
                 //解析内置方法
-                child = funcStatement(tokens);
+                child = parseFunc(tokens);
             }
             if (child != null) {
                 root.addChild(child);
@@ -155,12 +180,12 @@ public class SimpleParser {
                 if (token != null && token.type == TokenType.Assignment) { //匹配=
                     token = tokens.read();
                     //后面可能是int或加法表达式，所以用加法表达式解析token
-                    SimpleASTNode child = additive(tokens);
+                    SimpleASTNode child = parseAdditive(tokens);
                     if (child != null) {
                         node.addChild(child);
                     } else {
                         //右边是个方法readInt();
-                        child = funcStatement(tokens);
+                        child = parseFunc(tokens);
                         node.addChild(child);
                         //额解析Func时会把最后的分号吃掉，所以下面吃掉分号会报错
                         //貌似想要解决需要我改语法规则
@@ -209,7 +234,7 @@ public class SimpleParser {
                 if (token != null && token.type == TokenType.Assignment) { //匹配=
                     token = tokens.read();
                     //后面可能是string或加法表达式，所以用加法表达式解析token
-                    SimpleASTNode child = additive(tokens);
+                    SimpleASTNode child = parseAdditive(tokens);
                     if (child != null) {
                         node.addChild(child);
                     } else {
@@ -217,7 +242,7 @@ public class SimpleParser {
                             throw new MyException("bool类型变量只能readBool获取", node.getToken().getLineNumber(), node.getToken().getColumnNumber());
                         }
                         //右边是个方法readString();
-                        child = funcStatement(tokens);
+                        child = parseFunc(tokens);
                         node.addChild(child);
 //                        throw new Exception("Incorrect variable declaration");
                     }
@@ -260,7 +285,7 @@ public class SimpleParser {
                 if (token != null && token.type == TokenType.Assignment) { //匹配=
                     token = tokens.read();
                     //后面可能是string或加法表达式，所以用加法表达式解析token
-                    SimpleASTNode child = additive(tokens);
+                    SimpleASTNode child = parseAdditive(tokens);
                     if (child != null) {
                         node.addChild(child);
                     } else {
@@ -268,7 +293,7 @@ public class SimpleParser {
                             throw new MyException("String类型变量只能readString获取", node.getToken().getLineNumber(), node.getToken().getColumnNumber());
                         }
                         //右边是个方法readString();
-                        child = funcStatement(tokens);
+                        child = parseFunc(tokens);
                         node.addChild(child);
                     }
                 }
@@ -295,18 +320,49 @@ public class SimpleParser {
         return mulNode;
     }
 
-    private SimpleASTNode compare(TokenReader tokens) throws Exception {
-        SimpleASTNode child1 = additive(tokens);
+
+    private SimpleASTNode parseAnd(TokenReader tokens) throws Exception {
+        SimpleASTNode child1 = parseCompare(tokens);
         //如果只有一个add
         SimpleASTNode root = child1;
         Token token = tokens.peek();
         if (child1 != null && token != null) {
-            if (token.type == TokenType.GE || token.type == TokenType.GT || token.type == TokenType.OR
-                    || token.type == TokenType.NoEquals || token.getType() == TokenType.Equals
+            while (token.getType() == TokenType.Equals || token.getType() == TokenType.OR) {
+                tokens.read();
+                SimpleASTNode child2 = parseCompare(tokens);
+                //解析完创建根节点
+                root = new SimpleASTNode(ASTNodeType.And, token.getText(), null);
+                root.setToken(token);
+                if (child2 != null) {
+                    root.addChild(child1);
+                    root.addChild(child2);
+                } else {
+                    throw new Exception("错误的And表达式，缺少右半部分");
+                }
+                token = tokens.peek();//更新token
+            }
+        }
+        return root;
+    }
+
+    /**
+     * 其实按照递归下降，这里应该是while语句
+     *
+     * @param tokens
+     * @return
+     * @throws Exception
+     */
+    private SimpleASTNode parseCompare(TokenReader tokens) throws Exception {
+        SimpleASTNode child1 = parseAdditive(tokens);
+        //如果只有一个add
+        SimpleASTNode root = child1;
+        Token token = tokens.peek();
+        if (child1 != null && token != null) {
+            while (token.type == TokenType.GE || token.type == TokenType.GT || token.type == TokenType.NoEquals
                     || token.type == TokenType.LT || token.type == TokenType.LE) {
                 //吃掉符号，继续向下解析add非终结符
                 tokens.read();
-                SimpleASTNode child2 = additive(tokens);
+                SimpleASTNode child2 = parseAdditive(tokens);
                 //解析完创建根节点
                 root = new SimpleASTNode(ASTNodeType.Compare, token.getText(), null);
                 root.setToken(token);
@@ -314,8 +370,9 @@ public class SimpleParser {
                     root.addChild(child1);
                     root.addChild(child2);
                 } else {
-                    throw new Exception("错误的比较表达式，缺少右半部分");
+                    throw new Exception("正在解析比较运算，但是child2为null");
                 }
+                token = tokens.peek();//更新token
             }
 
         }
@@ -336,7 +393,7 @@ public class SimpleParser {
             if (token != null && token.type == TokenType.Assignment) { //匹配=
                 token = tokens.read();
                 //后面可能是int或加法表达式，所以用加法表达式解析token
-                SimpleASTNode child = additive(tokens);
+                SimpleASTNode child = parseAdditive(tokens);
                 if (child != null) {
                     node.addChild(child);
                 } else {
@@ -369,17 +426,17 @@ public class SimpleParser {
      * @param tokens
      * @return
      */
-    private SimpleASTNode additive(TokenReader tokens) throws Exception {
-        SimpleASTNode child1 = mul(tokens);
+    private SimpleASTNode parseAdditive(TokenReader tokens) throws Exception {
+        SimpleASTNode child1 = parseMul(tokens);
         //如果是 add: mul，直接返回这个节点就行。
         // 如果是add: mul | mul + add需要创建两个节点
         SimpleASTNode root = child1;
         Token token = tokens.peek();
         if (child1 != null && token != null) {
-            if (token.type == TokenType.Plus || token.type == TokenType.Minus) {
+            while (token.type == TokenType.Plus || token.type == TokenType.Minus) {
                 //吃掉加号，继续向下解析add非终结符
                 tokens.read();
-                SimpleASTNode child2 = additive(tokens);
+                SimpleASTNode child2 = parseMul(tokens);
                 //解析完创建根节点
                 root = new SimpleASTNode(ASTNodeType.Additive, token.getText(), null);
                 root.setToken(token);
@@ -389,6 +446,7 @@ public class SimpleParser {
                 } else {
                     throw new Exception("错误的加法表达式，缺少右半部分");
                 }
+                token = tokens.peek();//更新token
             }
 
         }
@@ -401,9 +459,9 @@ public class SimpleParser {
      * @param tokens
      * @return
      */
-    private SimpleASTNode mul(TokenReader tokens) throws Exception {
+    private SimpleASTNode parseMul(TokenReader tokens) throws Exception {
         //解析基本的token。非终结符
-        SimpleASTNode child1 = primary(tokens);
+        SimpleASTNode child1 = parseAtom(tokens);
         //如果·mul: Int，则把这个直接当根节点
         SimpleASTNode root = child1;
         Token token = tokens.peek();
@@ -412,7 +470,7 @@ public class SimpleParser {
                     || token.type == TokenType.Power) {
                 //吃掉*运算符,处理mul
                 token = tokens.read();
-                SimpleASTNode child2 = mul(tokens);
+                SimpleASTNode child2 = parseMul(tokens);
                 if (child2 != null) {
                     //创建*法节点
                     root = new SimpleASTNode(ASTNodeType.Multiplicative, token.getText(), null);
@@ -420,7 +478,7 @@ public class SimpleParser {
                     root.addChild(child1);
                     root.addChild(child2);
                 } else {
-                    throw new Exception("乘法表达式错误，缺少右部分");
+                    throw new Exception("预解析乘法表达式，但child2为null");
                 }
             }
             //匹配分号
@@ -435,7 +493,7 @@ public class SimpleParser {
      * @return
      * @throws Exception
      */
-    private SimpleASTNode primary(TokenReader tokens) throws Exception {
+    private SimpleASTNode parseAtom(TokenReader tokens) throws Exception {
         SimpleASTNode node = null;
         Token token = tokens.peek();
         if (token != null) {
@@ -474,7 +532,7 @@ public class SimpleParser {
                 node.setToken(token);
             } else if (token.getType() == TokenType.LeftParen) { // 如果是左括号，（括号里面可以是加法可以是乘法）
                 tokens.read();
-                node = additive(tokens);
+                node = parseAdditive(tokens);
 //                if (node != null) {
                 token = tokens.peek();
                 //吃掉右括号
@@ -489,7 +547,7 @@ public class SimpleParser {
     }
 
 
-    private SimpleASTNode funcStatement(TokenReader tokens) throws Exception {
+    private SimpleASTNode parseFunc(TokenReader tokens) throws Exception {
         Token token = tokens.peek();
         SimpleASTNode node = null;
         if (token != null && token.getType() == TokenType.Func) {
@@ -499,8 +557,19 @@ public class SimpleParser {
             token = tokens.peek();
             if (token != null && token.getType() == TokenType.LeftParen) {
                 //开始解析表达式expression （expr）
-                tokens.read();//吃掉左括号
-                SimpleASTNode expression = expressionStatement(tokens);
+                SimpleASTNode expression = parseArithExpr(tokens);
+
+                //匹配最后一个分号; 1+2+3;  print(1+2+3);
+                token = tokens.peek();
+                if (token != null) {
+                    if (token.getType() == TokenType.SemiColon) {
+                        tokens.read(); //吃掉分号，否则利用指针回溯
+                    } else {
+                        expression = null;
+                        throw new MyException("缺少分号", token.getLineNumber(), token.getColumnNumber());
+                    }
+                }
+
                 if (expression != null) {
                     node.addChild(expression);
                 }
@@ -509,7 +578,21 @@ public class SimpleParser {
         return node;
     }
 
-    private SimpleASTNode ifStatement(TokenReader tokens) throws Exception {
+    /**
+     * IF -> if arithExpr block (Else block)*
+     * <p>
+     * 下面这种的语法生成式是啥?
+     * if () {
+     * <p>
+     * } else if (){
+     * <p>
+     * }
+     *
+     * @param tokens
+     * @return
+     * @throws Exception
+     */
+    private SimpleASTNode parseIf(TokenReader tokens) throws Exception {
         SimpleASTNode node = null;
         Token token = tokens.peek();
         if (token != null && token.getType() == TokenType.If) {
@@ -518,17 +601,22 @@ public class SimpleParser {
             node.setToken(token);
             token = tokens.peek();
             if (token != null && token.getType() == TokenType.LeftParen) {
-                tokens.read();// 吃掉左括号
                 //开始解析表达式expression
-                SimpleASTNode expression = expressionStatement(tokens);
+                SimpleASTNode expression = parseArithExpr(tokens);
 
                 node.addChild(expression);
+
                 //解析statement大括号里的
-                SimpleASTNode trueStmt = trueBlockStmt(tokens);
+                SimpleASTNode trueStmt = parseBlock(tokens);
                 node.addChild(trueStmt);
-                SimpleASTNode falseStmt = falseBlockStmt(tokens);
-                if (falseStmt != null) {
-                    node.addChild(falseStmt);
+
+                //解析Else语句块
+                if (tokens.peek().getType() == TokenType.Else) {
+                    tokens.read(); //吃掉else
+                    SimpleASTNode falseStmt = parseBlock(tokens);
+                    if (falseStmt != null) {
+                        node.addChild(falseStmt);
+                    }
                 }
             } else {
                 throw new MyException("If语句没有左括号", node.getToken().getLineNumber(), node.getToken().getColumnNumber());
@@ -537,32 +625,13 @@ public class SimpleParser {
         return node;
     }
 
-    private SimpleASTNode falseBlockStmt(TokenReader tokens) throws Exception {
-        Token token = tokens.peek();
-        SimpleASTNode node = null;
-        if (token != null && token.getType() == TokenType.Else) {
-            tokens.read(); // 吃掉else
-            node = new SimpleASTNode(ASTNodeType.BlockStmt, "falseBlock", null);
-            node.setToken(token);
-            token = tokens.peek();
-            if (token != null && token.getType() == TokenType.LeftBigParen) {
-                tokens.read();//吃掉左括号(
-                ASTNode prog = prog(tokens);
-                //{stmt}，解析出来的每个语句都加入到BlockStmt中
-                for (ASTNode child : prog.getChildren()) {
-                    node.addChild((SimpleASTNode) child);
-                }
-            }
-        }
-        return node;
-    }
 
-    private SimpleASTNode trueBlockStmt(TokenReader tokens) throws Exception {
+    private SimpleASTNode parseBlock(TokenReader tokens) throws Exception {
         Token token = tokens.peek();
         SimpleASTNode node = null;
         if (token != null && token.getType() == TokenType.LeftBigParen) {
             tokens.read(); // 吃掉{
-            node = new SimpleASTNode(ASTNodeType.BlockStmt, "trueBlock", null);
+            node = new SimpleASTNode(ASTNodeType.BlockStmt, "block", null);
             node.setToken(token);
             ASTNode prog = prog(tokens);
             //{stmt}，解析出来的每个语句都加入到BlockStmt中
@@ -570,10 +639,20 @@ public class SimpleParser {
                 node.addChild((SimpleASTNode) child);
             }
         }
+        //吃掉右括号
+        token = tokens.peek();
+        if (token != null) {
+            if (token.getType() == TokenType.RightBigParen) {
+                tokens.read();//吃掉右大括号
+            } else {
+                throw new MyException("缺少大括号", token.getLineNumber(), token.getColumnNumber());
+            }
+        }
+
         return node;
     }
 
-    private SimpleASTNode whileStatement(TokenReader tokens) throws Exception {
+    private SimpleASTNode parseWhile(TokenReader tokens) throws Exception {
         SimpleASTNode node = null;
         Token token = tokens.peek();
         if (token != null && token.getType() == TokenType.While) {
@@ -582,13 +661,12 @@ public class SimpleParser {
             node.setToken(token);
             token = tokens.peek();
             if (token != null && token.getType() == TokenType.LeftParen) {
-                tokens.read();// 吃掉左括号
-                //开始解析表达式expression
-                SimpleASTNode expression = expressionStatement(tokens);
+                //开始解析算数表达式expression
+                SimpleASTNode expression = parseArithExpr(tokens);
 
                 node.addChild(expression);
                 //解析statement大括号里的
-                SimpleASTNode trueStmt = trueBlockStmt(tokens);
+                SimpleASTNode trueStmt = parseBlock(tokens);
                 node.addChild(trueStmt);
             } else {
                 throw new MyException("While语句没有左括号", node.getToken().getLineNumber(), node.getToken().getColumnNumber());
@@ -604,7 +682,7 @@ public class SimpleParser {
      * @param tokens
      * @return
      */
-    private SimpleASTNode assignmentStatement(TokenReader tokens) throws Exception {
+    private SimpleASTNode parseSimpleAssign(TokenReader tokens) throws Exception {
         SimpleASTNode node = null;
         Token token = tokens.peek();
         if (token != null && token.getType() == TokenType.Identifier) { //先匹配标识符
@@ -614,7 +692,8 @@ public class SimpleParser {
             token = tokens.peek();
             if (token != null && token.getType() == TokenType.Assignment) {//匹配等号
                 tokens.read();
-                SimpleASTNode child = additive(tokens);
+                //解析算数表达式
+                SimpleASTNode child = parseAdditive(tokens);
                 if (child != null) {
                     node.addChild(child);
                     token = tokens.peek();  //预读，看看后面是不是分号
@@ -625,7 +704,7 @@ public class SimpleParser {
                     }
                 } else {
                     //解析readInt();右边是个函数
-                    child = funcStatement(tokens);
+                    child = parseFunc(tokens);
                     node.addChild(child);
                 }
             } else {
@@ -637,30 +716,21 @@ public class SimpleParser {
     }
 
     /**
-     * 匹配表达式 2+3+4;，(a > b) 解析以后会吃掉右括号和分号
+     * 解析算数表达式
+     * 2+3+4;，(a > b) 解析以后会吃掉右括号和分号
      * com-> add > add
      *
      * @param tokens
      * @return
      * @throws Exception
      */
-    private SimpleASTNode expressionStatement(TokenReader tokens) throws Exception {
+    private SimpleASTNode parseArithExpr(TokenReader tokens) throws Exception {
+        tokens.read();//先吃掉左括号
         int pos = tokens.getPosition();
         //解析加法表达式
-        SimpleASTNode node = compare(tokens);
+        SimpleASTNode node = parseAnd(tokens);
         //node等不等于null都吃掉右括号和分号
         tokens.read();// 吃掉右括号
-        //匹配最后一个分号; 1+2+3;
-        Token token = tokens.peek();
-        if (token != null && token.getType() == TokenType.SemiColon) {
-            tokens.read(); //吃掉分号，否则利用指针回溯
-        } else if (token != null && token.getType() == TokenType.LeftBigParen) {
-//                if (1+2+3) {}这样的表达式，解析完expression以后不一定是;
-            return node;
-        } else {
-            node = null;
-            tokens.setPosition(pos);
-        }
         return node;
     }
 

@@ -29,9 +29,9 @@ public class SimpleCalculator {
         try {
             //解析代码，解析成小数是对的
             SimpleParser parser = new SimpleParser();
-            toy.bean.ASTNode tree = parser.parse(script);
+            ASTNode tree = parser.parse(script);
             //打印树的结构
-//            dumpAST(tree, "");
+            dumpAST(tree, "");
             //执行运算
             return evaluate(tree, "");
         } catch (MyException e) {
@@ -58,6 +58,8 @@ public class SimpleCalculator {
 
         switch (node.getType()) {
             case Program:
+                double valueOf1;
+                double valueOf2;
                 //获取子节点，递归调用子节点
                 for (ASTNode child : node.getChildren()) {
                     result = evaluate(child, indent + "\t");
@@ -69,14 +71,22 @@ public class SimpleCalculator {
                 String value1 = evaluate(child1, indent + "\t");
                 ASTNode child2 = node.getChildren().get(1);
                 String value2 = evaluate(child2, indent + "\t");
+                boolean ifTwoNum = true;//是否是两个整数进行运算
                 //字符串转成浮点数计算，再转成字符串
                 if (node.getText().equals("+")) {
-                    if (child1.getType() == ASTNodeType.StringLiteral || child2.getType() == ASTNodeType.StringLiteral) {
-                        //("hello" + "wwk")解析字符串的相加
-                        result = value1 + value2;
-                    } else {
+                    try {
+                        Double.parseDouble(value1);
+                        Double.parseDouble(value2);
+                    } catch (NumberFormatException e) {
+                        ifTwoNum = false;
+                    }
+
+                    if (ifTwoNum) {
                         //(2 + 3)解析数字的相加
                         result = formatNum(String.valueOf(Double.parseDouble(value1) + Double.parseDouble(value2)));
+                    } else {
+                        //("hello" + "wwk")解析字符串的相加
+                        result = value1 + value2;
                     }
                 } else {
                     result = formatNum(String.valueOf(Double.parseDouble(value1) - Double.parseDouble(value2)));
@@ -164,13 +174,33 @@ public class SimpleCalculator {
                     evaluate(child, "");
                 }
                 break;
+            case And:
+                child1 = node.getChildren().get(0);
+                value1 = evaluate(child1, indent + "\t");
+                child2 = node.getChildren().get(1);
+                value2 = evaluate(child2, indent + "\t");
+                if ("&&".equals(node.getText())) {
+                    if (value1.equals("true") && value2.equals("true")) {
+                        return "true";
+                    } else {
+                        return "false";
+                    }
+                }
+                if ("||".equals(node.getText())) {
+                    if (value1.equals("true") || value2.equals("true")) {
+                        return "true";
+                    } else {
+                        return "false";
+                    }
+                }
+                break;
             case Compare:
                 child1 = node.getChildren().get(0);
                 value1 = evaluate(child1, indent + "\t");
                 child2 = node.getChildren().get(1);
                 value2 = evaluate(child2, indent + "\t");
-                double valueOf1 = Double.parseDouble(value1);
-                double valueOf2 = Double.parseDouble(value2);
+                valueOf1 = Double.parseDouble(value1);
+                valueOf2 = Double.parseDouble(value2);
                 if (">".equals(node.getText())) {
                     if (valueOf1 > valueOf2) {
                         result = "true";
@@ -312,6 +342,65 @@ public class SimpleCalculator {
         return result;
     }
 
+    /**
+     * 语法解析：根节点
+     *
+     * @return
+     * @throws Exception
+     */
+    private SimpleASTNode prog(TokenReader tokens) throws Exception {
+        SimpleASTNode node = new SimpleASTNode(ASTNodeType.Program, "Calculator");
+
+        SimpleASTNode child = additive(tokens);
+
+        if (child != null) {
+            node.addChild(child);
+        }
+        return node;
+    }
+
+    /**
+     * 整型变量声明语句，如：
+     * int a;
+     * int b = 2*3;
+     *
+     * @return
+     * @throws Exception
+     */
+    private SimpleASTNode numDeclare(TokenReader tokens) throws Exception {
+        SimpleASTNode node = null;
+        Token token = tokens.peek();    //预读
+        if (token != null && token.getType() == TokenType.Id_num) {   //匹配Int
+            token = tokens.read();      //消耗掉int
+            if (tokens.peek().getType() == TokenType.Identifier) { //匹配标识符
+                token = tokens.read();  //消耗掉标识符
+                //创建当前节点，并把变量名记到AST节点的文本值中，这里新建一个变量子节点也是可以的
+                node = new SimpleASTNode(ASTNodeType.NumDeclaration, token.getText());
+                token = tokens.peek();  //预读
+                if (token != null && token.getType() == TokenType.Assignment) {
+                    tokens.read();      //消耗掉等号
+                    SimpleASTNode child = additive(tokens);  //匹配一个表达式
+                    if (child == null) {
+                        throw new Exception("invalide variable initialization, expecting an expression");
+                    } else {
+                        node.addChild(child);
+                    }
+                }
+            } else {
+                throw new Exception("variable name expected");
+            }
+
+            if (node != null) {
+                token = tokens.peek();
+                if (token != null && token.getType() == TokenType.SemiColon) {
+                    tokens.read();
+                } else {
+                    throw new Exception("invalid statement, expecting semicolon");
+                }
+            }
+        }
+        return node;
+    }
 
     /**
      * 语法解析：加法表达式
@@ -433,4 +522,5 @@ public class SimpleCalculator {
         return (Double.parseDouble(result) ==
                 (int) Double.parseDouble(result)) ? String.format("%.0f", Double.parseDouble(result)) : String.valueOf(result);
     }
+
 }

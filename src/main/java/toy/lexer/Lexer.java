@@ -26,6 +26,12 @@ public class Lexer {
         lineTokens = new ArrayList<Token>();
     }
 
+    /**
+     * 直接解析我们的代码
+     * @param script
+     * @return
+     * @throws Exception
+     */
     public TokenReader parseB(String script) throws Exception {
         parse(script);
         // 直接解析所有的code代码(如果用输入框的话把下下面代码注释了)

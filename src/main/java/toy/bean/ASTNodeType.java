@@ -30,5 +30,5 @@ public enum ASTNodeType {
     Compare,
     WhileStmt,
     BreakNode,
-    ContinueNode,
+    ContinueNode, And,
 }

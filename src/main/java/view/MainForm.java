@@ -35,6 +35,8 @@ public class MainForm {
         frame.setIconImage(new ImageIcon("./resources/images/bitbug_favicon.png").getImage());
         Operation.setTheme(Element.themeStyle, frame);
 
+//        String currentPath = System.getProperty("user.dir");
+//        System.out.println("当前路径：" + currentPath);
         Element.styleJML.addActionListener(new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {

@@ -1,5 +1,4 @@
 package view;
-
 import toy.parser.Natives;
 import toy.parser.SimpleCalculator;
 import view.project.Element;
@@ -16,7 +15,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.Objects;
 
 import static view.project.TabItem.outputArea;
 
