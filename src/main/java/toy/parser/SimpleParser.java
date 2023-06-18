@@ -16,7 +16,7 @@ import java.util.List;
  * -> parseIf
  * -> parseWhile
  * -> parseFunc
- * block -> LCB prog LSB
+ * block -> LCB prog LCB
  * arithExpr -> LPAREN compare RPAREN
  * If -> IF arithExpr block (Else block)*
  * While -> WHILE arithExpr block
@@ -648,7 +648,6 @@ public class SimpleParser {
                 throw new MyException("缺少大括号", token.getLineNumber(), token.getColumnNumber());
             }
         }
-
         return node;
     }
 
