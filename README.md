@@ -17,7 +17,7 @@
    2. 解决：看字符串转换成数字是否异常
 #### 4. 示例代码
    ```java
-   num a = 1,b = 0;
+num a = 1,b = 0;
 print(a + b);
 print(a - b);
 print(a * b);

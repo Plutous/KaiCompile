@@ -436,7 +436,7 @@ public class SimpleParser {
             while (token.type == TokenType.Plus || token.type == TokenType.Minus) {
                 //吃掉加号，继续向下解析add非终结符
                 tokens.read();
-                SimpleASTNode child2 = parseMul(tokens);
+                SimpleASTNode child2 = parseAdditive(tokens);
                 //解析完创建根节点
                 root = new SimpleASTNode(ASTNodeType.Additive, token.getText(), null);
                 root.setToken(token);
